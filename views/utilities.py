@@ -68,6 +68,26 @@ class LazySequence(Sequence[T_co], Generic[T_co, S_co]):
         """Return a shallow copy of the sequence"""
         return self.__class__(self._mapper, self._domain)
 
+    def __eq__(self, other):
+        """Return true if the two sequences are equal, otherwise false
+
+        Lazy sequences compare equal if their mappers and domains are
+        equivalent. Note that this means two lazy sequences of differing
+        elements can be considered equal (implying that the mapper is an impure
+        function).
+
+        The benefit to this "lazy comparison" is potential constant-time
+        equality checks. For example, lazy sequences with `range` domains would
+        be done in constant time, because ranges are simply generated from
+        three integer values that can be compared without the need for
+        traversal.
+        """
+        if self is other:
+            return True
+        if not isinstance(other, LazySequence):
+            return NotImplemented
+        return self._mapper == other._mapper and self._domain == other._domain
+
     @property
     def mapper(self):
         """The function whose results compose the sequence's elements from the
@@ -77,7 +97,5 @@ class LazySequence(Sequence[T_co], Generic[T_co, S_co]):
 
     @property
     def domain(self):
-        """The sequence of valid arguments capable of being passed to the
-        mapper
-        """
+        """The sequence of arguments accepted by the mapper"""
         return self._domain
