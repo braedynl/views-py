@@ -43,7 +43,10 @@ class View(Sequence[T]):
         """
         target = self._target
         if isinstance(key, slice):
-            return WindowedView(target, window=range(*key.indices(len(self))))
+            return WindowedView(
+                target,
+                window=range(*key.indices(len(target))),
+            )
         try:
             value = target[key]
         except IndexError as error:
