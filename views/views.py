@@ -1,10 +1,10 @@
-from __future__ import annotations
+import copy
+from collections.abc import Sequence
+from typing import TypeVar
 
-from collections.abc import Iterator, Sequence
-from copy import copy
-from typing import Any, Optional, TypeVar, overload
+from .exceptions import WindowingIndexError
 
-__all__ = ["View", "WindowingIndexError", "WindowedView"]
+__all__ = ["View", "WindowedView"]
 
 T = TypeVar("T")
 
@@ -14,33 +14,26 @@ class View(Sequence[T]):
 
     Similar to the objects returned by `dict.keys()` and `dict.values()`,
     alterations made to the wrapped sequence (called the "target") are
-    reflected by the view instance.
+    reflected by its associated `View` instances.
     """
 
     __slots__ = ("_target",)
 
-    Self = TypeVar("Self", bound="View")
-
-    def __init__(self: Self, target: Sequence[T]) -> None:
+    def __init__(self, target):
         """Construct a view from its target"""
         self._target = target
 
-    def __repr__(self: Self) -> str:
+    def __repr__(self):
         """Return a canonical representation of the view"""
         return f"{self.__class__.__name__}(target={self._target!r})"
 
-    def __str__(self: Self) -> str:
+    def __str__(self):
         """Return a string representation of the view"""
         return f"<{', '.join(map(str, self))}>"
 
-    def __len__(self: Self) -> int:
+    def __len__(self):
         """Return the length of the view"""
         return len(self._target)
-
-    @overload
-    def __getitem__(self: Self, key: int) -> T: ...
-    @overload
-    def __getitem__(self: Self, key: slice) -> WindowedView[T]: ...
 
     def __getitem__(self, key):
         """Return the element or subsequence corresponding to `key`
@@ -54,27 +47,35 @@ class View(Sequence[T]):
         try:
             value = target[key]
         except IndexError as error:
-            n = len(self)
+            n = len(target)
             raise IndexError(f"target has length {n}, but index is {key}") from error
         else:
             return value
 
-    def __iter__(self: Self) -> Iterator[T]:
+    def __iter__(self):
         """Return an iterator that yields the view's items"""
-        yield from map(self.__getitem__, range(len(self)))
+        yield from iter(self._target)
 
-    def __reversed__(self: Self) -> Iterator[T]:
+    def __reversed__(self):
         """Return an iterator that yields the view's items in reverse order"""
-        yield from map(self.__getitem__, reversed(range(len(self))))
+        yield from reversed(self._target)
 
-    def __contains__(self: Self, value: Any) -> bool:
+    def __contains__(self, value):
         """Return true if the view contains `value`, otherwise false"""
-        return any(map(lambda x: x is value or x == value, self))
+        return value in self._target
 
+    def __eq__(self, other):
+        """Return true if the views are equal, otherwise false
 
-class WindowingIndexError(LookupError):
-    """Raised when a windowing index is out of range"""
-    ...
+        Any non-`View` argument will emit `NotImplemented`. Views are
+        considered equal if they are element-wise equivalent, regardless of the
+        target's class.
+        """
+        if not isinstance(other, View):
+            return NotImplemented
+        if len(self) != len(other):
+            return False
+        return all(map(lambda x, y: x is y or x == y, self, other))
 
 
 class WindowedView(View[T]):
@@ -97,9 +98,7 @@ class WindowedView(View[T]):
 
     __slots__ = ("_window",)
 
-    Self = TypeVar("Self", bound="WindowedView")
-
-    def __init__(self: Self, target: Sequence[T], window: Optional[Sequence[int]] = None) -> None:
+    def __init__(self, target, window=None):
         """Construct a windowed view from its target and window
 
         If `window` is unspecified or `None`, it defaults to
@@ -108,18 +107,13 @@ class WindowedView(View[T]):
         recommended.
         """
         self._target = target
-        self._window = range(len(target)) if window is None else copy(window)
+        self._window = range(len(target)) if window is None else copy.copy(window)
 
-    def __repr__(self: Self) -> str:
+    def __repr__(self):
         return f"{self.__class__.__name__}(target={self._target!r}, window={self._window!r})"
 
-    def __len__(self: Self) -> int:
+    def __len__(self):
         return len(self._window)
-
-    @overload
-    def __getitem__(self: Self, key: int) -> T: ...
-    @overload
-    def __getitem__(self: Self, key: slice) -> Self: ...
 
     def __getitem__(self, key):
         """Return the element or subsequence corresponding to `key`
@@ -138,7 +132,7 @@ class WindowedView(View[T]):
         try:
             subkey = window[key]
         except IndexError as error:
-            n = len(self)
+            n = len(window)
             raise IndexError(f"window has length {n}, but index is {key}") from error
         else:
             target = self._target
@@ -151,3 +145,47 @@ class WindowedView(View[T]):
                 raise WindowingIndexError(f"target has length {n}, but windowing index is {subkey} (origin index {key})") from error
             else:
                 return value
+
+    def __iter__(self, *, iter=iter):
+        window = self._window
+        target = self._target
+        for subkey in iter(window):
+            try:
+                value = target[subkey]
+            except IndexError as error:
+                n = len(target)
+                raise WindowingIndexError(f"target has length {n}, but windowing index is {subkey}") from error
+            else:
+                yield value
+
+    def __reversed__(self):
+        yield from self.__iter__(iter=reversed)
+
+    def __contains__(self, value):
+        return any(map(lambda x: x is value or x == value, self))
+
+    def get(self, key, default=None):
+        """Return the element corresponding to `key`, or `default` if the
+        windowing index is out of range
+
+        Raises `IndexError` if `key` is out of range of the window.
+        """
+        window = self._window
+        try:
+            subkey = window[key]
+        except IndexError as error:
+            n = len(window)
+            raise IndexError(f"window has length {n}, but index is {key}") from error
+        else:
+            target = self._target
+            n = len(target)
+            return target[subkey] if -n <= subkey < n else default
+
+    def get_each(self, default=None):
+        """Return an iterator that yields the view's items, or `default` if the
+        windowing index is out of range
+        """
+        target = self._target
+        window = self._window
+        n = len(target)
+        yield from map(lambda subkey: target[subkey] if -n <= subkey < n else default, window)
