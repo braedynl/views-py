@@ -87,13 +87,15 @@ class WindowedView(View[T]):
     the "windowing indices".
 
     Unlike most views, windowed views will not shrink or expand themselves to
-    fit the target. The window is constant, and the target is allowed to change
-    from beneath, meaning that windowing indices can go in and out of range
-    depending on actions performed by the target.
+    fit the target. The window is kept constant, and the target is allowed to
+    change from beneath, meaning that windowing indices can go in and out of
+    range depending on actions performed by the target.
 
-    If a windowing index goes out of range, `WindowingIndexError` is raised.
-    This is a type of `LookupError` (not an `IndexError`!) that will only ever
-    be raised by `__getitem__()` and its dependents.
+    Certain methods will detect the absence of a target position by raising
+    `WindowingIndexError`. This is a custom exception that derives from
+    `LookupError`, so as not to conflate the semantics around `IndexError`.
+    Some helper methods are provided to safely manage windowing indices in
+    ambiguous situations.
     """
 
     __slots__ = ("_window",)
@@ -106,7 +108,7 @@ class WindowedView(View[T]):
         whole. If a view on the whole target is needed, using a basic `View` is
         recommended.
         """
-        self._target = target
+        super().__init__(target)
         self._window = range(len(target)) if window is None else copy.copy(window)
 
     def __repr__(self):
