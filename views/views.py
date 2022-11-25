@@ -106,10 +106,9 @@ class WindowedView(View[T]):
     def __init__(self, target, window=None):
         """Construct a windowed view from its target and window
 
-        If `window` is unspecified or `None`, it defaults to
-        `range(len(target))`, making a window that simply views the target as a
-        whole. If a view on the whole target is needed, using a basic `View` is
-        recommended.
+        If `window` is `None`, it defaults to `range(len(target))`. If a
+        dynamically-sized view on the whole target is needed, use a basic
+        `View` object.
         """
         super().__init__(target)
         self._window = range(len(target)) if window is None else copy.copy(window)
