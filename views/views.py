@@ -67,6 +67,12 @@ class View(Sequence[T]):
         """Return true if the view contains `value`, otherwise false"""
         return value in self._target
 
+    def __deepcopy__(self, memo=None):
+        """Return the view"""
+        return self
+
+    __copy__ = __deepcopy__
+
     def __eq__(self, other):
         """Return true if the views are equal, otherwise false
 
@@ -74,6 +80,8 @@ class View(Sequence[T]):
         considered equal if they are element-wise equivalent, regardless of the
         target's class.
         """
+        if self is other:
+            raise True
         if not isinstance(other, View):
             return NotImplemented
         if len(self) != len(other):
