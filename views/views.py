@@ -47,13 +47,7 @@ class View(Sequence[T]):
                 target,
                 window=range(*key.indices(len(target))),
             )
-        try:
-            value = target[key]
-        except IndexError as error:
-            n = len(target)
-            raise IndexError(f"target has length {n}, but index is {key}") from error
-        else:
-            return value
+        return target[key]
 
     def __iter__(self):
         """Return an iterator that yields the view's items"""
@@ -140,27 +134,22 @@ class WindowedView(View[T]):
         moment in time). Windowing indices may become in-range again if the
         target grows in length.
         """
+        target = self._target
         window = self._window
+        subkey = window[key]
+        if isinstance(key, slice):
+            return self.__class__(target, subkey)
         try:
-            subkey = window[key]
+            value = target[subkey]
         except IndexError as error:
-            n = len(window)
-            raise IndexError(f"window has length {n}, but index is {key}") from error
+            n = len(target)
+            raise WindowingIndexError(f"target has length {n}, but windowing index is {subkey} (origin index {key})") from error
         else:
-            target = self._target
-            if isinstance(key, slice):
-                return self.__class__(target, subkey)
-            try:
-                value = target[subkey]
-            except IndexError as error:
-                n = len(target)
-                raise WindowingIndexError(f"target has length {n}, but windowing index is {subkey} (origin index {key})") from error
-            else:
-                return value
+            return value
 
     def __iter__(self, *, iter=iter):
-        window = self._window
         target = self._target
+        window = self._window
         for subkey in iter(window):
             try:
                 value = target[subkey]
@@ -182,16 +171,11 @@ class WindowedView(View[T]):
 
         Raises `IndexError` if `key` is out of range of the window.
         """
+        target = self._target
         window = self._window
-        try:
-            subkey = window[key]
-        except IndexError as error:
-            n = len(window)
-            raise IndexError(f"window has length {n}, but index is {key}") from error
-        else:
-            target = self._target
-            n = len(target)
-            return target[subkey] if -n <= subkey < n else default
+        subkey = window[key]
+        n = len(target)
+        return target[subkey] if -n <= subkey < n else default
 
     def get_each(self, default=None):
         """Return an iterator that yields the view's items, or `default` if the
