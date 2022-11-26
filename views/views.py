@@ -38,7 +38,7 @@ class View(Sequence[T]):
     def __getitem__(self, key):
         """Return the element or subsequence corresponding to `key`
 
-        If `key` is a slice, a sub-class of `View` (`WindowedView`) is
+        If `key` is a slice, a sub-class of `View`, `WindowedView`, is
         returned. See its class documentation for more details.
         """
         target = self._target
