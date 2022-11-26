@@ -75,12 +75,10 @@ class View(Sequence[T]):
         target's class.
         """
         if self is other:
-            raise True
+            return True
         if not isinstance(other, View):
             return NotImplemented
-        if len(self) != len(other):
-            return False
-        return all(map(lambda x, y: x is y or x == y, self, other))
+        return len(self) == len(other) and all(map(lambda x, y: x is y or x == y, self, other))
 
 
 class WindowedView(View[T]):
