@@ -1,185 +1,133 @@
-import copy
-from collections.abc import Sequence
-from typing import TypeVar
+from collections.abc import Iterator, Sequence
+from typing import Any, Optional, SupportsIndex, TypeVar, final, overload
 
-from .exceptions import WindowingIndexError
+__all__ = ["View"]
 
-__all__ = ["View", "WindowedView"]
-
-T = TypeVar("T")
+T    = TypeVar("T")
+Self = TypeVar("Self", bound="View")
 
 
+def clamp(x: int, lower: int, upper: int) -> int:
+    return max(lower, min(upper, x))
+
+
+@final
 class View(Sequence[T]):
-    """A read-only view on a `Sequence[T]` object
+    """A dynamically-sized, read-only view into a `Sequence[T]` object
 
-    Similar to the objects returned by `dict.keys()` and `dict.values()`,
-    alterations made to the wrapped sequence (called the "target") are
-    reflected by its associated `View` instances.
+    Views are thin wrappers around a reference to some `Sequence[T]` (called
+    the "target"), and a `range` of indices to view from it (called the
+    "window"). Alterations made to the target are reflected by its views.
+
+    At creation time, a window can be provided to define the view object's
+    boundaries. Views can shrink and expand, but only within the space alloted
+    by the window. The view will only contain values if the window's starting
+    index is within range of the target.
     """
 
-    __slots__ = ("_target",)
+    NULL_WINDOW: range = range(0, 0, 1)
 
-    def __init__(self, target):
-        """Construct a view from its target"""
+    __slots__ = ("_target", "_window")
+
+    def __init__(self, target: Sequence[T], window: Optional[range] = None) -> None:
         self._target = target
+        self._window = range(len(target)) if window is None else window
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """Return a canonical representation of the view"""
-        return f"{self.__class__.__name__}(target={self._target!r})"
+        return f"{self.__class__.__name__}(target={self._target!r}, window={self._window!r})"
 
-    def __str__(self):
-        """Return a string representation of the view"""
-        return f"<{', '.join(map(str, self))}>"
+    __str__ = __repr__
 
-    def __len__(self):
-        """Return the length of the view"""
-        return len(self._target)
+    def __len__(self) -> int:
+        """Return the number of currently viewable items"""
+        return len(self.subwindow())
+
+    @overload
+    def __getitem__(self: Self, key: SupportsIndex) -> T: ...
+    @overload
+    def __getitem__(self: Self, key: slice) -> Self: ...
 
     def __getitem__(self, key):
-        """Return the element or subsequence corresponding to `key`
+        """Return the element or sub-view corresponding to `key`
 
-        If `key` is a slice, a sub-class of `View`, `WindowedView`, is
-        returned. See its class documentation for more details.
+        Note that slicing is performed relative to the "complete" window, as
+        opposed to the active sub-window.
+
+        Since a new `View` instance is made for slice arguments, this method
+        guarantees constant-time performance.
         """
         target = self._target
+        window = self._window[key]
         if isinstance(key, slice):
-            return WindowedView(
-                target,
-                window=range(*key.indices(len(target))),
-            )
-        return target[key]
+            return self.__class__(target, window)
+        return target[window]
 
-    def __iter__(self):
-        """Return an iterator that yields the view's items"""
-        yield from iter(self._target)
+    def __iter__(self) -> Iterator[T]:
+        """Return an iterator that yields the currently viewable items"""
+        yield from map(self._target.__getitem__, self.subwindow())
 
-    def __reversed__(self):
-        """Return an iterator that yields the view's items in reverse order"""
-        yield from reversed(self._target)
+    def __reversed__(self) -> Iterator[T]:
+        """Return an iterator that yields the currently viewable items in
+        reverse order
+        """
+        yield from map(self._target.__getitem__, reversed(self.subwindow()))
 
-    def __contains__(self, value):
-        """Return true if the view contains `value`, otherwise false"""
-        return value in self._target
+    def __contains__(self, value: Any) -> bool:
+        """Return true if the currently viewable items contains `value`,
+        otherwise false
+        """
+        return any(map(lambda x: x is value or x == value, self))
 
-    def __deepcopy__(self, memo=None):
+    def __deepcopy__(self: Self, memo: Optional[dict[int, Any]] = None) -> Self:
         """Return the view"""
         return self
 
     __copy__ = __deepcopy__
 
-    def __eq__(self, other):
-        """Return true if the views are equal, otherwise false
+    def __eq__(self, other: Any) -> bool:
+        """Return true if the two views are equal, otherwise false
 
-        Any non-`View` argument will emit `NotImplemented`. Views are
-        considered equal if they are element-wise equivalent, regardless of the
-        target's class.
+        Views are considered equal if they refer to the same target and have
+        equal windows.
         """
-        if self is other:
-            return True
-        if not isinstance(other, View):
-            return NotImplemented
-        return len(self) == len(other) and all(map(lambda x, y: x is y or x == y, self, other))
+        if isinstance(other, View):
+            return (
+                self._target is other._target
+                and
+                self._window == other._window
+            )
+        return NotImplemented
 
+    @property
+    def window(self) -> range:
+        """A range of potential indices to use in retrieval of target items"""
+        return self._window
 
-class WindowedView(View[T]):
-    """A type of `View[T]` capable of viewing only a subset of items from the
-    target sequence, rather than the whole
+    def full(self) -> bool:
+        """Return true if the view is at full capacity, otherwise false
 
-    Instances contain a "window", which is a sequence of indices used to tell
-    the view where it should look within the target. These indices are called
-    the "windowing indices".
-
-    Unlike most views, windowed views will not shrink or expand themselves to
-    fit the target. The window is kept constant, and the target is allowed to
-    change from beneath, meaning that windowing indices can go in and out of
-    range depending on actions performed by the target.
-
-    Certain methods will detect the absence of a target position by raising
-    `WindowingIndexError`. This is a custom exception that derives from
-    `LookupError`, so as not to conflate the semantics around `IndexError`.
-    Some helper methods are provided to safely manage windowing indices in
-    ambiguous situations.
-    """
-
-    __slots__ = ("_window",)
-
-    def __init__(self, target, window=None):
-        """Construct a windowed view from its target and window
-
-        If `window` is `None`, it defaults to `range(len(target))`. If a
-        dynamically-sized view on the whole target is needed, use a basic
-        `View` object.
+        Equivalent to `len(view.window) == len(view)`.
         """
-        super().__init__(target)
-        self._window = range(len(target)) if window is None else copy.copy(window)
+        return len(self._window) == len(self)
 
-    def __repr__(self):
-        return f"{self.__class__.__name__}(target={self._target!r}, window={self._window!r})"
+    def subwindow(self) -> range:
+        """Return a range of indices currently viewable from the window
 
-    def __len__(self):
-        return len(self._window)
-
-    def __getitem__(self, key):
-        """Return the element or subsequence corresponding to `key`
-
-        This method may raise one of two exceptions (both sub-classes of
-        `LookupError`). `IndexError` is raised if `key` is out of range of the
-        window. `WindowingIndexError` is raised if the "sub-key" that `key`
-        maps to is out of range of the target.
-
-        If a `WindowingIndexError` is raised, this often means that the target
-        has reduced its length (assuming that the index was in-range at a prior
-        moment in time). Windowing indices may become in-range again if the
-        target grows in length.
+        If the window's starting index is out of range of the target,
+        `range(0, 0)` is returned.
         """
         target = self._target
         window = self._window
-        subkey = window[key]
-        if isinstance(key, slice):
-            return self.__class__(target, subkey)
-        try:
-            value = target[subkey]
-        except IndexError as error:
-            n = len(target)
-            raise WindowingIndexError(f"target has length {n}, but windowing index is {subkey} (origin index {key})") from error
-        else:
-            return value
 
-    def __iter__(self, *, iter=iter):
-        target = self._target
-        window = self._window
-        for subkey in iter(window):
-            try:
-                value = target[subkey]
-            except IndexError as error:
-                n = len(target)
-                raise WindowingIndexError(f"target has length {n}, but windowing index is {subkey}") from error
-            else:
-                yield value
+        length = len(target)
 
-    def __reversed__(self):
-        yield from self.__iter__(iter=reversed)
+        start = window.start
 
-    def __contains__(self, value):
-        return any(map(lambda x: x is value or x == value, self))
+        if start < -length or start >= length:
+            return self.NULL_WINDOW
 
-    def get(self, key, default=None):
-        """Return the element corresponding to `key`, or `default` if the
-        windowing index is out of range
+        stop = clamp(window.stop, lower=-length - 1, upper=length)
+        step = window.step
 
-        Raises `IndexError` if `key` is out of range of the window.
-        """
-        target = self._target
-        window = self._window
-        subkey = window[key]
-        n = len(target)
-        return target[subkey] if -n <= subkey < n else default
-
-    def get_each(self, default=None):
-        """Return an iterator that yields the view's items, or `default` if the
-        windowing index is out of range
-        """
-        target = self._target
-        window = self._window
-        n = len(target)
-        yield from map(lambda subkey: target[subkey] if -n <= subkey < n else default, window)
+        return range(start, stop, step)

@@ -1,5 +1,8 @@
-# TODO: docstring
+"""Views and related utilities for generic sequence types
 
-from .exceptions import *
-from .utilities import *
+Author: Braedyn L
+Version: 1.0.0
+Documentation: https://github.com/braedynl/views-py
+"""
+
 from .views import *
