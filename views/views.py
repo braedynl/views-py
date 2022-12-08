@@ -3,6 +3,8 @@ import typing
 from collections.abc import Iterator, Sequence
 from typing import Any, Optional, SupportsIndex, TypeVar
 
+from .utilities import RangeTuple, indices
+
 __all__ = ["View"]
 
 T    = TypeVar("T")
@@ -24,7 +26,7 @@ class View(Sequence[T]):
 
     __slots__ = ("_target", "_window")
 
-    def __init__(self, target: Sequence[T], window: slice = slice(None)) -> None:
+    def __init__(self, target: Sequence[T], window: slice = slice(None, None)) -> None:
         self._target = target
         self._window = window
 
@@ -37,7 +39,7 @@ class View(Sequence[T]):
 
     def __len__(self) -> int:
         """Return the number of currently viewable items"""
-        return len(range(*self.indices()))
+        return len(self.indices().range())
 
     @typing.overload
     def __getitem__(self: Self, key: SupportsIndex) -> T: ...
@@ -56,7 +58,7 @@ class View(Sequence[T]):
         """
         if isinstance(key, slice):
             return self.__class__(self, key)
-        subkeys = range(*self.indices())
+        subkeys = self.indices().range()
         try:
             subkey = subkeys[key]
         except IndexError as error:
@@ -67,14 +69,14 @@ class View(Sequence[T]):
 
     def __iter__(self) -> Iterator[T]:
         """Return an iterator that yields the currently viewable items"""
-        subkeys = range(*self.indices())
+        subkeys = self.indices().range()
         yield from map(self._target.__getitem__, subkeys)
 
     def __reversed__(self) -> Iterator[T]:
         """Return an iterator that yields the currently viewable items in
         reverse order
         """
-        subkeys = range(*self.indices())
+        subkeys = self.indices().range()
         yield from map(self._target.__getitem__, reversed(subkeys))
 
     def __contains__(self, value: Any) -> bool:
@@ -97,8 +99,8 @@ class View(Sequence[T]):
         """
         if isinstance(other, View):
             self_subkeys, other_subkeys = (
-                range( *self.indices()),
-                range(*other.indices()),
+                 self.indices().range(),
+                other.indices().range(),
             )
             if len(self_subkeys) != len(other_subkeys):
                 return False
@@ -120,12 +122,8 @@ class View(Sequence[T]):
         """A slice of potential indices to use in retrieval of target items"""
         return self._window
 
-    def indices(self) -> tuple[int, int, int]:
+    def indices(self) -> RangeTuple:
         """Return the start, stop, and step indices that currently form the
         viewable selection of the target
-
-        Internally, these values are simply calculated from the window's
-        `indices()` method, using the length of the target sequence as its
-        argument.
         """
-        return self._window.indices(len(self._target))
+        return indices(self._window, len=len(self._target))

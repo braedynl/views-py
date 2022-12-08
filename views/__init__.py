@@ -5,4 +5,5 @@ Version: 1.0.0
 Documentation: https://github.com/braedynl/views-py
 """
 
+from .utilities import *
 from .views import *
