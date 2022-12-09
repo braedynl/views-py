@@ -77,7 +77,7 @@ The window may not overlap with the target's indices. If the window captures a r
 When the target indices and window *do* overlap, the window is "narrowed" to only include the indices that are visible. The narrowed window is calculated similar to how `slice.indices()` calculates its start, stop, and step tuple - the start, however, is computed in a manner that is consistent with the slice's step value:
 
 ```python
->>> from views import indices
+>>> from views import indices as view_indices
 >>>
 >>> def slice_indices(slc: slice, len: int) -> tuple[int, int, int]:
 ...     return slc.indices(len)
@@ -87,7 +87,7 @@ When the target indices and window *do* overlap, the window is "narrowed" to onl
 >>>
 >>> slc = slice(5, None, -2)  # Note that index 5 is one space out-of-range
 >>>
->>> x = range(      *indices(slc, len(target)))
+>>> x = range( *view_indices(slc, len(target)))
 >>> y = range(*slice_indices(slc, len(target)))
 >>>
 >>> # View indices are calculated in a manner that preserves other items of the
