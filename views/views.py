@@ -1,7 +1,6 @@
-import reprlib
-import typing
 from collections.abc import Iterator, Sequence
-from typing import Any, Optional, SupportsIndex, TypeVar
+from reprlib import recursive_repr
+from typing import Any, Optional, SupportsIndex, TypeVar, overload
 
 from .utilities import RangeLikeTuple, indices
 
@@ -30,7 +29,7 @@ class View(Sequence[T]):
         self._target = target
         self._window = window
 
-    @reprlib.recursive_repr(fillvalue="...")
+    @recursive_repr(fillvalue="...")
     def __repr__(self) -> str:
         """Return a canonical representation of the view"""
         return f"{self.__class__.__name__}(target={self._target!r}, window={self._window!r})"
@@ -41,9 +40,9 @@ class View(Sequence[T]):
         """Return the number of currently viewable items"""
         return len(self.indices().range())
 
-    @typing.overload
+    @overload
     def __getitem__(self: Self, key: SupportsIndex) -> T: ...
-    @typing.overload
+    @overload
     def __getitem__(self: Self, key: slice) -> Self: ...
 
     def __getitem__(self, key):
@@ -95,7 +94,7 @@ class View(Sequence[T]):
         """Return true if the two views are equal, otherwise false
 
         Views compare equal if they are element-wise equivalent, independent of
-        their target classes.
+        their target classes and windows.
         """
         if isinstance(other, View):
             self_subkeys, other_subkeys = (
