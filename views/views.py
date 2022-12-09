@@ -2,7 +2,7 @@ from collections.abc import Iterator, Sequence
 from reprlib import recursive_repr
 from typing import Any, Optional, SupportsIndex, TypeVar, overload
 
-from .utilities import RangeLikeTuple, indices
+from .utilities import RangeProperties, indices
 
 __all__ = ["View"]
 
@@ -11,7 +11,7 @@ Self = TypeVar("Self", bound="View")
 
 
 class View(Sequence[T]):
-    """A dynamically-sized, read-only view into a `Sequence[T]` object
+    """A dynamic, read-only view into a `Sequence[T]` object
 
     Views are thin wrappers around a reference to some `Sequence[T]` (called
     the "target"), and a `slice` of indices to view from it (called the
@@ -47,10 +47,6 @@ class View(Sequence[T]):
 
     def __getitem__(self, key):
         """Return the element or sub-view corresponding to `key`
-
-        Note that slicing is performed relative to the currently viewable
-        items, rather than the "potential" selection of items defined by the
-        window.
 
         Since a new `View` instance is made for slice arguments, this method
         guarantees constant-time performance.
@@ -121,8 +117,12 @@ class View(Sequence[T]):
         """A slice of potential indices to use in retrieval of target items"""
         return self._window
 
-    def indices(self) -> RangeLikeTuple:
-        """Return the start, stop, and step indices that currently form the
+    def indices(self) -> RangeProperties:
+        """Return a start, stop, and step tuple that currently form the
         viewable selection of the target
+
+        The returned tuple is, more specifically, a `typing.NamedTuple` that
+        contains some convenience methods for conversion to a `range` or
+        `slice` object.
         """
         return indices(self._window, len=len(self._target))
