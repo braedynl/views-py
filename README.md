@@ -72,7 +72,7 @@ The window of a `View` allows for contiguous subsets of a target sequence to be 
 ['d', 'b']
 ```
 
-The window may not overlap with the target's indices. If the window captures a range of indices beyond what is available, then the view is considered empty (but may not always be if the target sequence expands at a later moment in time).
+The window may or may not overlap with the target's indices. If the window captures a range of indices beyond what is available, then the view is considered empty (but may not always be if the target sequence expands at a later moment in time).
 
 When the target indices and window *do* overlap, the window is "narrowed" to only include the indices that are visible. The narrowed window is calculated similar to how `slice.indices()` calculates its start, stop, and step tuple - the start, however, is computed in a manner that is consistent with the slice's step value:
 
