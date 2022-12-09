@@ -2,7 +2,7 @@ import operator
 from abc import abstractmethod
 from typing import NamedTuple, Optional, Protocol, SupportsIndex
 
-__all__ = ["RangeLike", "RangeTuple", "indices"]
+__all__ = ["RangeLike", "RangeLikeTuple", "indices"]
 
 
 class RangeLike(Protocol):
@@ -21,7 +21,7 @@ class RangeLike(Protocol):
     def step(self) -> Optional[int]: ...  # XXX: integer values should try to be non-zero
 
 
-class RangeTuple(NamedTuple):
+class RangeLikeTuple(NamedTuple):
     """A named tuple containing a `start`, `stop`, and `step` index,
     convertable to a built-in `range` or `slice` object
     """
@@ -39,7 +39,7 @@ class RangeTuple(NamedTuple):
         return slice(self.start, self.stop, self.step)
 
 
-def indices(rng: RangeLike, len: SupportsIndex) -> RangeTuple:
+def indices(rng: RangeLike, len: SupportsIndex) -> RangeLikeTuple:
     """Return a `start`, `stop`, and `step` tuple currently applicable to a
     sequence of `len`, with the properties of `rng`
 
@@ -85,4 +85,4 @@ def indices(rng: RangeLike, len: SupportsIndex) -> RangeTuple:
             if stop > upper:
                 stop = upper
 
-    return RangeTuple(start, stop, step)
+    return RangeLikeTuple(start, stop, step)

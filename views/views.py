@@ -3,7 +3,7 @@ import typing
 from collections.abc import Iterator, Sequence
 from typing import Any, Optional, SupportsIndex, TypeVar
 
-from .utilities import RangeTuple, indices
+from .utilities import RangeLikeTuple, indices
 
 __all__ = ["View"]
 
@@ -122,7 +122,7 @@ class View(Sequence[T]):
         """A slice of potential indices to use in retrieval of target items"""
         return self._window
 
-    def indices(self) -> RangeTuple:
+    def indices(self) -> RangeLikeTuple:
         """Return the start, stop, and step indices that currently form the
         viewable selection of the target
         """
