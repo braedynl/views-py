@@ -46,6 +46,8 @@ def indices(rng: RangeLike, len: SupportsIndex) -> RangeLikeTuple:
     This function is a near-direct translation of `slice.indices()` (originally
     implemented in C), with the starting value calculated based on the step of
     `rng`, rather than a simple numeric clamp.
+
+    Raises `ValueError` if the step of `rng` is 0.
     """
     start, stop, step = rng.start, rng.stop, rng.step
 
