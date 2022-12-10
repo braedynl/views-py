@@ -2,6 +2,8 @@
 
 Views and related utilities for generic sequence types.
 
+Defines a dynamic, read-only sequence view with contiguous windowing capabilities, alongside some utilities for defining custom ones.
+
 ## Getting Started
 
 This project is available through pip (requires Python 3.10 or higher):
@@ -26,7 +28,7 @@ Due to the simplicity of this library, the following is considered the "official
 
 Under this library's definition, a *view* is a thin wrapper around a reference to some [`Sequence[T]`](https://docs.python.org/3/library/collections.abc.html#collections-abstract-base-classes) (called the "target"), and a [`slice`](https://docs.python.org/3/library/functions.html#slice) of indices to view from it (called the "window"). Alterations made to the target are reflected by its views. Views are, themselves, a type of `Sequence[T]`, and do not offer much in terms of extra functionality.
 
-Views are a useful alternative to copies, as an instance of one takes significantly less space in memory for larger sequences, and does not induce much runtime overhead on construction. The `View` class that comes with this library is read-only, but dynamic - meaning that the target can change its items and length, but the view itself cannot be modified:
+Views are a useful alternative to copies, as an instance of one takes significantly less space in memory for larger sequences, and does not induce much runtime overhead on construction or copy. The `View` class that comes with this library is read-only, but dynamic - meaning that the target can change its items and length, but the view itself cannot be modified (similar to the objects returned by `dict.keys()`, `dict.values()`, and `dict.items()`):
 
 ```python
 >>> from views import View
@@ -55,19 +57,19 @@ The window of a `View` allows for contiguous subsets of a target sequence to be 
 >>>
 >>> target = ['a', 'b', 'c', 'd', 'e']
 >>>
->>> view = View(target, window=slice(1, 4))
+>>> view = View(target, slice(1, 4))
 >>> print(list(view))
 ['b', 'c', 'd']
 >>>
->>> view = View(target, window=slice(None, None, -1))
+>>> view = View(target, slice(None, None, -1))
 >>> print(list(view))
 ['e', 'd', 'c', 'b', 'a']
 >>>
->>> view = View(target, window=slice(6, 10))
+>>> view = View(target, slice(6, 10))
 >>> print(list(view))
 []
 >>>
->>> view = View(target, window=slice(5, None, -2))
+>>> view = View(target, slice(5, None, -2))
 >>> print(list(view))
 ['d', 'b']
 ```
@@ -172,4 +174,6 @@ class List(MutableSequence[T]):
     ...
 ```
 
-You may often want to return a `View` that implements a common interface. In such cases, you can define a set of [mixins](https://stackoverflow.com/questions/533631/what-is-a-mixin-and-why-is-it-useful) applicable to `Sequence` types, and use `View` as a base class.
+You may often want to return a `View` that implements a common interface. In such cases, you can define a set of applicable [mixins](https://stackoverflow.com/questions/533631/what-is-a-mixin-and-why-is-it-useful), and use `View` as a base class. A [`Protocol`](https://docs.python.org/3/library/typing.html#typing.Protocol) can be used to group classes together without explicitly inheriting.
+
+Custom views may not always want the attributes that come from the concrete `View` class. An abstract base class, `SequenceView`, is provided for scenarios like this. It extends `collections.abc.Sequence`, and does not add or implement anything.

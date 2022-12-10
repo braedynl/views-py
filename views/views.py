@@ -1,16 +1,28 @@
+from abc import ABCMeta
 from collections.abc import Iterator, Sequence
 from reprlib import recursive_repr
 from typing import Any, Optional, SupportsIndex, TypeVar, overload
 
 from .utilities import RangeProperties, indices
 
-__all__ = ["View"]
+__all__ = ["SequenceView", "View"]
 
-T    = TypeVar("T")
+T = TypeVar("T")
+T_co = TypeVar("T_co", covariant=True)
+
 Self = TypeVar("Self", bound="View")
 
 
-class View(Sequence[T]):
+class SequenceView(Sequence[T_co], metaclass=ABCMeta):
+    """Abstract base class for all sequence views
+
+    This class is simply an extension of `collections.abc.Sequence` with no
+    additional abstracts, mixins, or implementations.
+    """
+    pass
+
+
+class View(SequenceView[T]):
     """A dynamic, read-only view into a `Sequence[T]` object
 
     Views are thin wrappers around a reference to some `Sequence[T]` (called
@@ -59,8 +71,7 @@ class View(Sequence[T]):
         except IndexError as error:
             raise IndexError(f"index out of range of window") from error
         else:
-            result = self._target[subkey]
-            return result
+            return self._target[subkey]
 
     def __iter__(self) -> Iterator[T]:
         """Return an iterator that yields the currently viewable items"""
