@@ -41,7 +41,7 @@ class View(SequenceView[T]):
         self._target = target
         self._window = window
 
-    @recursive_repr(fillvalue="...")
+    @recursive_repr("...")
     def __repr__(self) -> str:
         """Return a canonical representation of the view"""
         return f"{self.__class__.__name__}(target={self._target!r}, window={self._window!r})"

@@ -16,13 +16,13 @@ class SupportsRangeProperties(Protocol):
 
     @property
     @abstractmethod
-    def start(self) -> Optional[int]: ...
+    def start(self) -> Optional[SupportsIndex]: ...
     @property
     @abstractmethod
-    def stop(self) -> Optional[int]: ...
+    def stop(self) -> Optional[SupportsIndex]: ...
     @property
     @abstractmethod
-    def step(self) -> Optional[int]: ...
+    def step(self) -> Optional[SupportsIndex]: ...
 
 
 class RangeProperties(NamedTuple):
@@ -49,7 +49,9 @@ def indices(rng: SupportsRangeProperties, len: SupportsIndex) -> RangeProperties
 
     This function is a near-direct translation of `slice.indices()` (originally
     implemented in C), with the starting value calculated based on the step of
-    `rng`, rather than a simple numeric clamp.
+    `rng`, rather than a simple numeric clamp. See the
+    `_PySlice_GetLongIndices()` function of sliceobject.c here:
+    https://github.com/python/cpython/blob/main/Objects/sliceobject.c
 
     Raises `ValueError` if the step of `rng` is 0.
     """
@@ -61,6 +63,7 @@ def indices(rng: SupportsRangeProperties, len: SupportsIndex) -> RangeProperties
         step = 1
         reverse = False
     else:
+        step = operator.index(step)
         if not step:
             raise ValueError("step must be non-zero")
         reverse = step < 0
@@ -70,6 +73,7 @@ def indices(rng: SupportsRangeProperties, len: SupportsIndex) -> RangeProperties
     if start is None:
         start = upper if reverse else lower
     else:
+        start = operator.index(start)
         if start < 0:
             start += len
             if start < lower:
@@ -83,6 +87,7 @@ def indices(rng: SupportsRangeProperties, len: SupportsIndex) -> RangeProperties
     if stop is None:
         stop = lower if reverse else upper
     else:
+        stop = operator.index(stop)
         if stop < 0:
             stop += len
             if stop < lower:
