@@ -1,4 +1,4 @@
-# views-py
+# Views-Py
 
 Views and related utilities for generic sequence types.
 
@@ -110,7 +110,7 @@ a
 
 This `indices()` utility is exposed as a free function, and interfaced as a method of the same name under the `View` class. Note that its values in certain edge cases can be hard to judge - particularly with "bad" slices (e.g., a slice whose start precedes its stop, but has negative step). The values in such cases are guaranteed to produce a zero-length `range` when converted to one, however - this is done for performance benefits.
 
-### Examples
+## Examples
 
 One common scenario in which a `View` may be desirable is in "immutable exposition" of mutable data:
 

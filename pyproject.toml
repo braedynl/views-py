@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "views-py"
+version = "1.0.0"
+authors = [
+  { name="Braedyn L" },
+]
+description = "Views and related utilities for generic sequence types."
+readme = "README.md"
+license = { text="MIT License" }
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+keywords = ["view", "views", "windowing", "sequences", "sequence-viewer"]
+
+[project.urls]
+"Homepage" = "https://github.com/braedynl/views-py"
+"Source" = "https://github.com/braedynl/views-py"
+"Documentation" = "https://github.com/braedynl/views-py#quickstart"
+"Bug Tracker" = "https://github.com/braedynl/views-py/issues"
