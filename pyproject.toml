@@ -27,3 +27,6 @@ keywords = ["view", "views", "windowing", "sequences", "sequence-viewer"]
 "Source" = "https://github.com/braedynl/views-py"
 "Documentation" = "https://github.com/braedynl/views-py#quickstart"
 "Bug Tracker" = "https://github.com/braedynl/views-py/issues"
+
+[tool.setuptools.package-data]
+"*" = ["*.pyi", "py.typed"]
