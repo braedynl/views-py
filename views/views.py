@@ -44,6 +44,13 @@ class SequenceView(SequenceViewLike[T]):
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(target={self._target!r})"
 
+    def __eq__(self, other: Any) -> bool:
+        if isinstance(other, SequenceView):
+            if len(self) != len(other):
+                return False
+            return all(map(lambda x, y: x is y or x == y, self, other))
+        return NotImplemented
+
     def __len__(self) -> int:
         return len(self._target)
 
