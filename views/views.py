@@ -123,6 +123,11 @@ class SequenceWindow(SequenceView[T]):
     def __contains__(self, value: Any) -> bool:
         return any(map(lambda x: x is value or x == value, self))
 
+    @property
+    def window(self) -> slice:
+        """A ``slice`` of potential indices to use in retrieval of target items"""
+        return self._window
+
     def indices(self) -> RangeProperties:
         """Return a start, stop, and step tuple that currently form the
         visible selection of the target
