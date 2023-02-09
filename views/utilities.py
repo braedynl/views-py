@@ -10,8 +10,8 @@ __all__ = [
 
 
 class SupportsRangeProperties(Protocol):
-    """A protocol containing abstract properties for a `start`, `stop`, and
-    `step` index
+    """A protocol containing abstract properties for a ``start``, ``stop``, and
+    ``step`` index
     """
 
     @property
@@ -26,8 +26,8 @@ class SupportsRangeProperties(Protocol):
 
 
 class RangeProperties(NamedTuple):
-    """A named tuple containing a `start`, `stop`, and `step` index,
-    convertable to a built-in `range` or `slice` object
+    """A named tuple containing a ``start``, ``stop``, and ``step`` index,
+    convertable to a built-in ``range`` or ``slice`` object
     """
 
     start: int
@@ -35,27 +35,29 @@ class RangeProperties(NamedTuple):
     step: int
 
     def range(self) -> range:
-        """Return a `range` of the tuple's indices"""
+        """Return a ``range`` of the tuple's indices"""
         return range(self.start, self.stop, self.step)
 
     def slice(self) -> slice:
-        """Return a `slice` of the tuple's indices"""
+        """Return a ``slice`` of the tuple's indices"""
         return slice(self.start, self.stop, self.step)
 
 
 def indices(rng: SupportsRangeProperties, len: SupportsIndex) -> RangeProperties:
-    """Return a `start`, `stop`, and `step` tuple currently applicable to a
-    sequence of `len`, with the properties of `rng`
+    """Return a start, stop, and step tuple currently applicable to a sequence
+    of size ``len``, with the properties of ``rng``
 
-    This function is a near-direct translation of `slice.indices()` (originally
-    implemented in C), with the starting value calculated based on the step of
-    `rng`, rather than a simple numeric clamp. See the
-    `_PySlice_GetLongIndices()` function of sliceobject.c here:
+    This function is a near-direct translation of ``slice.indices()``
+    (originally implemented in C), with the starting value calculated based on
+    the step of ``rng``, rather than a simple numeric clamp. See the
+    ``_PySlice_GetLongIndices()`` function of sliceobject.c here:
     https://github.com/python/cpython/blob/main/Objects/sliceobject.c
 
-    Raises `ValueError` if the step of `rng` is 0.
+    Raises ``ValueError`` if the step of ``rng`` is 0.
     """
-    start, stop, step = rng.start, rng.stop, rng.step
+    start = rng.start
+    stop  = rng.stop
+    step  = rng.step
 
     len = operator.index(len)
 

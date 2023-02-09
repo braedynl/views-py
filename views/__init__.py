@@ -1,12 +1,17 @@
 """Views and related utilities for generic sequence types
 
-Defines a dynamic, read-only sequence view with contiguous windowing
-capabilities, alongside some utilities for defining custom ones.
-
 Author: Braedyn L
-Version: 1.0.0
-Documentation: https://github.com/braedynl/views-py
+Version: 2.0.0
 """
 
 from .utilities import *
 from .views import *
+
+__all__ = [
+    "SupportsRangeProperties",
+    "RangeProperties",
+    "indices",
+    "SequenceViewLike",
+    "SequenceView",
+    "SequenceWindow",
+]

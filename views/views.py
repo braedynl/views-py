@@ -5,135 +5,130 @@ from typing import Any, Optional, SupportsIndex, TypeVar, overload
 
 from .utilities import RangeProperties, indices
 
-__all__ = ["SequenceView", "View"]
+__all__ = [
+    "SequenceViewLike",
+    "SequenceView",
+    "SequenceWindow",
+]
 
 T = TypeVar("T")
 T_co = TypeVar("T_co", covariant=True)
+SequenceViewT = TypeVar("SequenceViewT", bound="SequenceView")
 
-Self = TypeVar("Self", bound="View")
 
-
-class SequenceView(Sequence[T_co], metaclass=ABCMeta):
+class SequenceViewLike(Sequence[T_co], metaclass=ABCMeta):
     """Abstract base class for all sequence views
 
-    This class is simply an extension of `collections.abc.Sequence` with no
+    This class simply derives from ``collections.abc.Sequence`` with no
     additional abstracts, mixins, or implementations.
     """
-    pass
+
+    __slots__ = ()
 
 
-class View(SequenceView[T]):
-    """A dynamic, read-only view into a `Sequence[T]` object
+class SequenceView(SequenceViewLike[T]):
+    """A basic, read-only sequence view
 
-    Views are thin wrappers around a reference to some `Sequence[T]` (called
-    the "target"), and a `slice` of indices to view from it (called the
-    "window"). Alterations made to the target are reflected by its views.
-
-    At creation time, a window can be provided to define the view object's
-    boundaries. Views may shrink if its target shrinks - they may also expand
-    if the window defines non-integral boundaries. The window may only contain
-    integral or `NoneType` values.
+    Views are thin wrappers around a reference to some ``Sequence[T]`` object,
+    called the "target" (internally named ``_target``). Mutations to the
+    underlying sequence are reflected by its views, but, views themselves
+    cannot perform such mutations.
     """
 
-    __slots__ = ("_target", "_window")
+    __slots__ = ("_target",)
 
-    def __init__(self, target: Sequence[T], window: slice = slice(None, None)) -> None:
+    def __init__(self, target: Sequence[T]) -> None:
         self._target = target
-        self._window = window
 
     @recursive_repr("...")
     def __repr__(self) -> str:
-        """Return a canonical representation of the view"""
-        return f"{self.__class__.__name__}(target={self._target!r}, window={self._window!r})"
-
-    __str__ = __repr__
+        return f"{self.__class__.__name__}(target={self._target!r})"
 
     def __len__(self) -> int:
-        """Return the number of currently viewable items"""
-        return len(self.indices().range())
+        return len(self._target)
 
     @overload
-    def __getitem__(self: Self, key: SupportsIndex) -> T: ...
+    def __getitem__(self, key: int) -> T: ...
     @overload
-    def __getitem__(self: Self, key: slice) -> Self: ...
+    def __getitem__(self, key: slice) -> Sequence[T]: ...
 
     def __getitem__(self, key):
-        """Return the element or sub-view corresponding to `key`
-
-        Since a new `View` instance is made for slice arguments, this method
-        guarantees constant-time performance.
-        """
         if isinstance(key, slice):
-            return self.__class__(self, key)
-        subkeys = self.indices().range()
-        try:
-            subkey = subkeys[key]
-        except IndexError as error:
-            raise IndexError(f"index out of range of window") from error
-        else:
-            return self._target[subkey]
+            return SequenceWindow(self._target, key)
+        return self._target[key]
 
     def __iter__(self) -> Iterator[T]:
-        """Return an iterator that yields the currently viewable items"""
-        subkeys = self.indices().range()
-        yield from map(self._target.__getitem__, subkeys)
+        yield from iter(self._target)
 
     def __reversed__(self) -> Iterator[T]:
-        """Return an iterator that yields the currently viewable items in
-        reverse order
-        """
-        subkeys = self.indices().range()
-        yield from map(self._target.__getitem__, reversed(subkeys))
+        yield from reversed(self._target)
 
     def __contains__(self, value: Any) -> bool:
-        """Return true if the currently viewable items contains `value`,
-        otherwise false
-        """
-        return any(map(lambda x: x is value or x == value, self))
+        return value in self._target
 
-    def __deepcopy__(self: Self, memo: Optional[dict[int, Any]] = None) -> Self:
-        """Return the view"""
+    def __deepcopy__(self: SequenceViewT, memo: Optional[dict[int, Any]] = None) -> SequenceViewT:
         return self
 
     __copy__ = __deepcopy__
 
-    def __eq__(self, other: Any) -> bool:
-        """Return true if the two views are equal, otherwise false
 
-        Views compare equal if they are element-wise equivalent, independent of
-        their target classes and windows.
-        """
-        if isinstance(other, View):
-            self_subkeys, other_subkeys = (
-                 self.indices().range(),
-                other.indices().range(),
-            )
-            if len(self_subkeys) != len(other_subkeys):
-                return False
-            return all(map(
-                lambda x, y: x is y or x == y,
-                map(
-                     self._target.__getitem__,
-                     self_subkeys,
-                ),
-                map(
-                    other._target.__getitem__,
-                    other_subkeys,
-                ),
-            ))
-        return NotImplemented
+class SequenceWindow(SequenceView[T]):
+    """A type of ``SequenceView`` capable of viewing only a subset of the
+    target sequence, rather than the whole
 
-    @property
-    def window(self) -> slice:
-        """A slice of potential indices to use in retrieval of target items"""
-        return self._window
+    To ``SequenceView``, ``SequenceWindow`` adds a ``slice`` attribute whose
+    parameters are used to define a "window" of the target sequence for which
+    the view is capable of seeing. Instances of ``SequenceWindow`` otherwise
+    behave identically to instances of ``SequenceView``.
+    """
+
+    __slots__ = ("_window",)
+
+    def __init__(self, target: Sequence[T], window: slice = slice(None, None)) -> None:
+        super().__init__(target)
+        self._window = window
+
+    @recursive_repr("...")
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(target={self._target!r}, window={self._window!r})"
+
+    def __len__(self) -> int:
+        sub_keys = self.indices().range()
+        return len(sub_keys)
+
+    @overload
+    def __getitem__(self, key: SupportsIndex) -> T: ...
+    @overload
+    def __getitem__(self, key: slice) -> Sequence[T]: ...
+
+    def __getitem__(self, key):
+        if isinstance(key, slice):
+            return SequenceWindow(self, key)
+        sub_keys = self.indices().range()
+        try:
+            value = self._target[sub_keys[key]]
+        except IndexError as error:
+            raise IndexError("window index out of range") from error
+        else:
+            return value
+
+    def __iter__(self) -> Iterator[T]:
+        sub_keys = self.indices().range()
+        yield from map(self._target.__getitem__, iter(sub_keys))
+
+    def __reversed__(self) -> Iterator[T]:
+        sub_keys = self.indices().range()
+        yield from map(self._target.__getitem__, reversed(sub_keys))
+
+    def __contains__(self, value: Any) -> bool:
+        return any(map(lambda x: x is value or x == value, self))
 
     def indices(self) -> RangeProperties:
         """Return a start, stop, and step tuple that currently form the
-        viewable selection of the target
+        visible selection of the target
 
-        The returned tuple is, more specifically, a `typing.NamedTuple` that
-        contains some convenience methods for conversion to a `range` or
-        `slice` object.
+        The returned tuple is, more specifically, a ``typing.NamedTuple`` that
+        contains some convenience methods for conversion to a ``range`` or
+        ``slice`` object.
         """
-        return indices(self._window, len=len(self._target))
+        return indices(rng=self._window, len=len(self._target))
